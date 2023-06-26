@@ -118,6 +118,21 @@ class AddressBook(UserDict):
         return entry
         
     def iterator(self, n):
+        pass
         
-        
-        
+class AddressBook(UserDict):
+    def __init__(self):
+        self.data = {}
+
+    def add_record(self, record):
+        self.data[record.name.value] = record
+
+    def iterator(self, n):
+        records = list(self.data.values())
+        num_records = len(records)
+        start_index = 0
+
+        while start_index < num_records:
+            end_index = start_index + n
+            yield records[start_index:end_index]
+            start_index = end_index
