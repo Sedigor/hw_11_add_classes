@@ -1,4 +1,5 @@
 import json
+import pickle
 from fake_users import user_1, user_2
 
 from collections import UserDict
@@ -64,7 +65,6 @@ class Birthday(Field):
                 return False
         except ValueError:
             return False
-
         return True
         
         
@@ -93,10 +93,8 @@ class Record:
         user_birthday = self.birthday.value
         _, month, day = map(int, user_birthday.split('-'))
         next_birthday = datetime.date(today.year, month, day)
-
         if next_birthday < today:
             next_birthday = datetime.date(today.year + 1, month, day)
-
         days_left = (next_birthday - today).days
         return days_left
             
@@ -118,22 +116,52 @@ class AddressBook(UserDict):
             yield records[start_index:end_index]
             start_index = end_index
             
+    def unpack_contact(self, class_contact):
+        name = class_contact.name.value
+        phones = [p.value for p in class_contact.phones]
+        birthday = class_contact.birthday.value
+        unpacked_contact = {'name': name, 'phones': phones, 'birthday': birthday}
+        return unpacked_contact
+            
     def find(self, sample):
         result = {}
         for k, v in self.data.items():
-            name = v.name.value
-            phones = ", ".join([p.value for p in v.phones])
-            birthday = v.birthday.value
-            
+            contact_data = self.unpack_contact(v)
+            name = contact_data.get("name")
+            phones = ", ".join(contact_data["phones"])
+            birthday = contact_data.get("birthday")
             if name.find(sample) > -1 or phones.find(sample) > -1 or birthday.find(sample) > -1:
-                contact = {k: v}
+                contact = {k: contact_data}
                 result.update(contact)
-        
         if not result:
             return "No match"
-        
         return result
+    
+    def save_to_file(self, filename):
+        with open(filename, "wb") as fh:
+            pickle.dump(self, fh)
+
+    def read_from_file(self, filename):
+        with open(filename, "rb") as fh:
+            contacts = pickle.load(fh)
+        return contacts
+    
+    def save_to_json(self, filename):
+        data = {}
+        for k, v in self.data.items():
+            contact_data = self.unpack_contact(v)
+            contact = {k: contact_data}
+            data.update(contact)
             
+        with open(filename, "w") as fh:
+            some_data = {"contacts": data}
+            json.dump(some_data, fh)
+        
+    def load_from_json(self, filename):
+        with open(filename, "r") as fh:
+            some_data = json.load(fh)
+        contacts = some_data["contacts"]
+        return contacts
             
 if __name__ == '__main__':
     
@@ -152,8 +180,12 @@ if __name__ == '__main__':
     ab.add_record(record_1)
     ab.add_record(record_2)
     
-    sample_1 = user_1["name"][1: 3]
-    sample_2 = user_2["phone"][5: 8]
+    sample = user_2["phone"][5: 7]
     
-    print(ab.find(sample_1))
-    print(ab.find(sample_2))
+    print(ab.find(sample))
+    
+    ab.save_to_file("contacts.bin")
+    ab.save_to_json("contacts.json")
+    contacts = ab.load_from_json("contacts.json")
+    
+    print(contacts)
